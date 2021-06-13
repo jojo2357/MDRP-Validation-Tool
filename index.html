@@ -15,7 +15,8 @@
             reader.onload = function(){
                 let keyedAlbums = [];
                 let usedKeys = [];
-                let everyLittleThingIsGonnaBeAlright = true;
+                let alertedAlbums = [];
+                let alertedKeys = [];
                 var text = reader.result.replace(/\r/g, '');
                 let lines = text.split('\n');
                 var outputNode = document.getElementById('output');
@@ -75,16 +76,20 @@
                         if (validKeys.filter(key => key.name === keyName).length === 0){
                             runOutput += `\n    WARNING line ${windex} the ablum "${albumName}" has a key ("${keyName}") that could not be found in the assets uploaded to discord.`
                         }
-                        if (keyedAlbums.includes(albumName)){
+                        if (keyedAlbums.includes(albumName) ^ alertedAlbums.includes(albumName)){
                             runOutput += `\n    WARNING line ${windex} duplicate album found: "${albumName}" is found more than once.`
+                            alertedAlbums.push(albumName);
                         }else
                             keyedAlbums.push(albumName);
-                        if (usedKeys.includes(keyName)){
+                        if (usedKeys.includes(keyName) ^ alertedKeys.includes(keyName)){
                             runOutput += `\n          The key ${keyName} is used multiple times. This might be on purpose but maybe not`
+                            alertedKeys.push(keyName);
                         }else
                             usedKeys.push(keyName);
                     });
                 }
+                if (runOutput.split('\n').length === 2)
+                    runOutput += '\nNothing wrong was found';
                 outputNode.innerText = runOutput;
             };
             reader.readAsText(input.files[0]);
