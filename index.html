@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MDRP Validation Tool</title>
+    <script>
+        let validOpeningLines = ['music.ui', 'musicbee', 'spotify'];
+
+        const openFile = function(event) {
+            console.log("Input: ", event);
+            let input = event.target;
+            let inName = event.srcElement.files[0].name;
+            let reader = new FileReader();
+
+            reader.onload = function(){
+                let keyedAlbums = [];
+                let usedKeys = [];
+                let everyLittleThingIsGonnaBeAlright = true;
+                var text = reader.result.replace(/\r/g, '');
+                let lines = text.split('\n');
+                var outputNode = document.getElementById('output');
+
+                let runOutput = `Run Output for ${inName}: `;
+
+                if (lines.length < 2) {
+                    runOutput = "\nInput file isn't long enough so I didn't evaluate it";
+                } else {
+                    if (!validOpeningLines.includes(lines[0].split('=')[0])){
+                        runOutput += `\nERROR line 1: "${lines[0].split('=')[0]}" not a supported player`;
+                    }
+                    lines.splice(0, 1);
+                    let workingID = "";
+                    if (!lines[0].match(/id=\d/)){
+                        runOutput += `\nERROR line 2: "${lines[0]}" does not match the form "id=##################"`;
+                    } else {
+                        workingID = lines[0].split("=")[1];
+                        runOutput += `\nID: ${workingID}`;
+                    }
+                    lines.splice(0, 1);
+                    let validKeys = [];
+                    if (workingID !== "") {
+                        let req = new XMLHttpRequest();
+                        req.open("GET", `https://discordapp.com/api/oauth2/applications/${workingID}/assets`, false);
+                        req.send(null);
+                        validKeys = JSON.parse(req.responseText);
+                        console.log(validKeys);
+                    }
+                    lines.forEach((rawline, windex) => {
+                        let line = rawline.trim();
+                        windex = windex + 3;
+                        if (line.length === 0)
+                            return;
+                        let albumName;
+                        let keyName;
+                        let artistStuff;
+                        let junk;
+                        if (line.includes("==")){
+                            junk = line.split('==');
+                        }else if(line.includes("=")){
+                            runOutput += `\n    WARNING line ${windex} uses only a single "=". It is valid, but discouraged.`
+                            junk = line.split('=');
+                        }else{
+                            runOutput += `\nERROR line ${windex} does not use a valid keying format (deprecated as of version a long time ago)`
+                            return;
+                        }
+                        albumName = junk.shift();
+                        if (junk.length === 0){
+                            runOutput += `\nERROR line ${windex} does not have a value for the album ${albumName}`;
+                            return;
+                        }
+                        keyName = junk.shift();
+                        if (keyName.length > 32){
+                            runOutput += `\n    WARNING line ${windex} the album "${albumName}" has a key ("${keyName}") that is longer than the 32 character maximum. Consider shortening it to less than 32 characters`;
+                        }
+                        if (validKeys.filter(key => key.name === keyName).length === 0){
+                            runOutput += `\n    WARNING line ${windex} the ablum "${albumName}" has a key ("${keyName}") that could not be found in the assets uploaded to discord.`
+                        }
+                        if (keyedAlbums.includes(albumName)){
+                            runOutput += `\n    WARNING line ${windex} duplicate album found: "${albumName}" is found more than once.`
+                        }else
+                            keyedAlbums.push(albumName);
+                        if (usedKeys.includes(keyName)){
+                            runOutput += `\n          The key ${keyName} is used multiple times. This might be on purpose but maybe not`
+                        }else
+                            usedKeys.push(keyName);
+                    });
+                }
+                outputNode.innerText = runOutput;
+            };
+            reader.readAsText(input.files[0]);
+        };
+    </script>
+</head>
+<body>
+<h1>MDRP Validation Tool</h1>
+<p id="output" style="white-space: pre;"></p>
+<input type='file' accept='.dat,.txt' onchange='openFile(event)' title="Upload DAT file"><br>
+</body>
+</html>
